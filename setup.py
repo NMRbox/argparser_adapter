@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 with open("README.rst", "r") as fh:
     readme_long_description = fh.read()
 
-setup(name = 'argparse_adapter',
+setup(name = 'argparser_adapter',
     version = '1.0',
     url = 'http://www.nmrbox.org',
     maintainer = 'gweatherby',
