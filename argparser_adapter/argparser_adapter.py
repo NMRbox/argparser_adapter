@@ -34,7 +34,7 @@ class ArgparserAdapter:
             arequired = False
             needarg = True
         else:
-            ap = argparse
+            ap = argparser
             arequired = self.argadapt_required
         plen = len(self.argadapt_prefix)
         for d in inspect.getmembers(self, self.__only_methods):
@@ -63,7 +63,7 @@ class ArgparserAdapter:
                 method, iparams = mspec
                 if params is True:  # noaction store_true argument
                     method()
-                    return
+                    continue
                 assert (len(params) == len(iparams))
                 callparams = []
                 for value, ptype in zip(params, iparams):

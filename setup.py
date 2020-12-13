@@ -5,7 +5,7 @@ with open("README.rst", "r") as fh:
     readme_long_description = fh.read()
 
 setup(name = 'argparser_adapter',
-    version = '1.0',
+    version = '1.1',
     url = 'http://www.nmrbox.org',
     maintainer = 'gweatherby',
     maintainer_email = 'gweatherby@uchc.edu',
