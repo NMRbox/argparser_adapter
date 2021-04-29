@@ -4,7 +4,7 @@ from ipaddress import IPv4Address
 from argparser_adapter.argparser_adapter import ArgparserAdapter
 
 
-class Something(ArgparserAdapter):
+class Something:
 
     def do_seven(self)->int:
         print(7)
@@ -25,14 +25,18 @@ class Something(ArgparserAdapter):
     def do_ipv4address(self,x:IPv4Address):
         print(x)
 
+    def do_binary(self,value:bool):
+        print(value)
+
 
 def main():
     something = Something()
+    adapter = ArgparserAdapter(something)
     something.argadapt_required = True
     parser = argparse.ArgumentParser()
-    something.register(parser)
+    adapter.register(parser)
     args = parser.parse_args()
-    something.call_specified_methods(args)
+    adapter.call_specified_methods(args)
 
 
 if __name__ == "__main__":

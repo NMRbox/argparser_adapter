@@ -1,14 +1,15 @@
 argparser_adapter
 =================
 
-This calls provides automatic adding of arguments to an argparser.ArgumentParser
+This package provides automatic adding of arguments to an argparser. ArgumentParser
 based on a simple method naming convention.
 
 Basic Usage
 -----------
 
-Derive your class from **ArgparserAdapter**. Methods starting with a prefix will
-be added to an argparser via the *register* call as -- arguments. After parsing,
+Write your class with methods you wish called from a command line starting with a given prefix.
+Create an **ArgparserAdapter**, passing your object as a constructor. Methods starting with a the
+specified prefix, *do_* by default, will be added to an argparser via the *register* call as -- arguments. After parsing,
 *call_specified_methods* will call methods specified on command. ArgparseAdapter will
 attempt to convert command line strings to appropriate types if Python `type hints`_ are
 provided.
@@ -22,7 +23,7 @@ Example
     from ipaddress import IPv4Address
     from argparse_adapter.argparse_adapter import ArgparserAdapter
 
-    class Something(ArgparserAdapter):
+    class Something:
 
         def do_seven(self)->int:
             print(7)
@@ -46,6 +47,12 @@ Example
 
     def main():
         something = Something()
+        adapter = ArgparserAdapter(something)
+        parser = argparse.ArgumentParser()
+        adapter.register(parser)
+        args = parser.parse_args()
+        adapter.call_specified_methods(args)
+
 
 Note the do_double will receive a string and must convert it to an integer. The
 type hint in do_triple ensures the argument will be an integer.

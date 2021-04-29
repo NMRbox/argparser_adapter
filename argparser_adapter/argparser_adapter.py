@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 import argparse
-import configparser
 import inspect
-import logging
+import itertools
 from typing import Any
 
 
 class ArgparserAdapter:
 
-    def __init__(self, *, prefix='do_', group=True, required=False):
+    BOOL_YES = ('true', 'on', 'yes')
+    BOOL_NO = ('false', 'off', 'no')
+
+    def __init__(self, client, *, prefix='do_', group=True, required=False):
+        """client: object to analyze for methods
+        prefix: name to start method withs for arguments
+        group: put arguments in an arparse group
+        required: if using a group, make it required"""
+        self.client = client
         self.argadapt_prefix = prefix
         self.argadapt_required = required
         self.argadapt_group = group
@@ -37,7 +44,7 @@ class ArgparserAdapter:
             ap = argparser
             arequired = self.argadapt_required
         plen = len(self.argadapt_prefix)
-        for d in inspect.getmembers(self, self.__only_methods):
+        for d in inspect.getmembers(self.client, self.__only_methods):
             name, mobj = d
             doc = inspect.getdoc(mobj)
             if name.startswith(self.argadapt_prefix):
@@ -45,7 +52,7 @@ class ArgparserAdapter:
                 arg = name[plen:]
                 sig = inspect.signature(mobj)
                 ptypes = [p for _, p in sig.parameters.items()]
-                self._argadapt_dict[arg] = (getattr(self, name), ptypes)
+                self._argadapt_dict[arg] = (getattr(self.client, name), ptypes)
                 nargs = len(ptypes)
                 if nargs > 0:
                     desc = tuple(sig.parameters.keys())
@@ -54,6 +61,22 @@ class ArgparserAdapter:
                     ap.add_argument(f'--{arg}', action='store_true', help=doc)
         if needarg:
             raise ValueError(f"No methods staring with {self.argadapt_prefix} found and group is required")
+
+    @staticmethod
+    def _interpret(typ,value):
+        if typ.annotation != bool:
+            return typ.annotation(value)
+        lvalue = value.lower()
+        if lvalue in ArgparserAdapter.BOOL_YES:
+            return True
+        if lvalue in ArgparserAdapter.BOOL_NO:
+            return False
+        try:
+            return bool(int(value))
+        except:
+            pass
+        vals = itertools.chain(ArgparserAdapter.BOOL_YES,ArgparserAdapter.BOOL_NO)
+        raise ValueError(f"Unable to interpret {value} as bool. Pass one of {','.join(vals)} or integer value")
 
     def call_specified_methods(self, args: argparse.Namespace) -> None:
         """Call method from parsed args previously registered"""
@@ -69,7 +92,7 @@ class ArgparserAdapter:
                 for value, ptype in zip(params, iparams):
                     if ptype.annotation != ptype.empty:
                         try:
-                            value = ptype.annotation(value)
+                            value = self._interpret(ptype,value)
                         except Exception as e:
                             value = self.param_conversion_exception(e, name, ptype.name, ptype.annotation, value)
                     callparams.append(value)
