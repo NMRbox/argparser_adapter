@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 from ipaddress import IPv4Address
-from argparser_adapter.argparser_adapter import ArgparserAdapter
+from argparser_adapter import ArgparserAdapter
 
 
 class Something:
