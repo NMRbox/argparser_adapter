@@ -6,13 +6,16 @@ with open("README.rst", "r") as fh:
 
 setup(name = 'argparser_adapter',
     version = '1.4',
-    url = 'http://www.nmrbox.org',
+    url = 'https://nmrhub.org',
     maintainer = 'gweatherby',
     maintainer_email = 'gweatherby@uchc.edu',
     description = 'Add argparser argument based on object heuristics',
     long_description = readme_long_description,
-    classifiers = ['License :: NMRbox license'],
-    packages = find_packages() 
+    classifiers = ['License :: OSI Approved :: MIT License'],
+    packages = find_packages() ,
+    project_urls={
+        'Funding' :'https://nmrhub.org'
+    }
     )
 
 
