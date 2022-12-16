@@ -6,7 +6,7 @@ with open("README.rst", "r") as fh:
 
 setup(name = 'argparser_adapter',
     version = '2.0',
-    url = 'https://nmrhub.org',
+    url = 'https://github.com/NMRbox/argparser_adapter',
     maintainer = 'gweatherby',
     maintainer_email = 'gweatherby@uchc.edu',
     description = 'Add argparser argument based on object heuristics',
