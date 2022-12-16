@@ -7,12 +7,22 @@ based on a simple method naming convention.
 Basic Usage
 -----------
 
-Write your class with methods you wish called from a command line starting with a given prefix.
-Create an **ArgparserAdapter**, passing your object as a constructor. Methods starting with a the
-specified prefix, *do_* by default, will be added to an argparser via the *register* call as -- arguments. After parsing,
+Write your class with methods you wish called from a command line decorated with *@CommandLine()*
+Create an **ArgparserAdapter**, passing your object as a constructor. Decorated methods
+will be added to an argparser via the *register* call as -- arguments. After parsing,
 *call_specified_methods* will call methods specified on command. ArgparseAdapter will
 attempt to convert command line strings to appropriate types if Python `type hints`_ are
 provided.
+
+CommandLine Options
+~~~~~~~~~~~~~~~~~~~
+Arguments may be designed as required using *@CommandLine(required=True).* Default values may
+be specified with *@CommandLine(default=10).* Note specifying both required and a default is possible
+but not useful.
+
+Logging
+~~~~~~~
+Logging is to: **logging.getLogger('argparser_adapter')**
 
 Example
 ~~~~~~~
@@ -20,57 +30,85 @@ Example
 ::
 
     import argparse
+    import logging
     from ipaddress import IPv4Address
-    from argparse_adapter.argparse_adapter import ArgparserAdapter
+
+    from argparser_adapter import ArgparserAdapter
+    from argparser_adapter.argparser_adapter import CommandLine
+
 
     class Something:
 
-        def do_seven(self)->int:
+        @CommandLine()
+        def seven(self) -> int:
+            # no help for this argument
             print(7)
             return 7
 
-
-        def do_double(self,x):
+        @CommandLine()
+        def double(self, x):
             """double a number"""
-            print(2*int(x))
+            print(2 * int(x))
 
-        def do_triple(self,x:int):
-            print(3*x)
-
-        def do_sum(self,x:int,y:int):
+        @CommandLine()
+        def sum(self, x: int, y: int):
             """sum arguments"""
             print(x + y)
 
-        def do_ipv4address(self,x:IPv4Address):
+        @CommandLine(default=10)
+        def triple(self, x: int):
+            """triple a value"""
+            print(3 * int(x))
+
+        @CommandLine()
+        def ipv4address(self, x: IPv4Address):
+            """Print ip address"""
+            print(type(x))
             print(x)
+
+        @CommandLine()
+        def binary(self, value: bool):
+            """True or false"""
+            print(value)
+
+        @CommandLine(required=True)
+        def happy(self, v: str):
+            """Report how happy we are"""
+            print(f"Happy is {v}")
 
 
     def main():
         something = Something()
-        adapter = ArgparserAdapter(something)
-        parser = argparse.ArgumentParser()
+        adapter = ArgparserAdapter(something, group=False, required=False)
+        parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         adapter.register(parser)
         args = parser.parse_args()
         adapter.call_specified_methods(args)
 
 
-Note the do_double will receive a string and must convert it to an integer. The
-type hint in do_triple ensures the argument will be an integer.
+    if __name__ == "__main__":
+        main()
+
+Note the *double* will receive a string and must convert it to an integer. The
+type hint in *triple* ensures the argument will be an integer.
 
 The resulting argument argparser help is:
 
 ::
 
-    usage: objecttest.py [-h]
-                         (--double x | --ipv4address x | --seven | --sum x y | --triple x)
+    usage: decoratortest.py [-h] [--binary value] [--double x] --happy v
+                            [--ipv4address x] [--seven] [--sum x y] [--triple x]
 
     optional arguments:
       -h, --help       show this help message and exit
-      --double x       double a number
-      --ipv4address x
+      --binary value   True or false (default: None)
+      --double x       double a number (default: None)
+      --happy v        Report how happy we are (default: None)
+      --ipv4address x  Print ip address (default: None)
       --seven
-      --sum x y        sum arguments
-      --triple x
+      --sum x y        sum arguments (default: None)
+      --triple x       triple a value (default: 10)
+
 
 Docstrings, if present, become help arguments.
 
