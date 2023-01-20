@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 import argparse
+import collections
 import functools
 import inspect
 import itertools
-from typing import Any, Dict
+from dataclasses import dataclass
+from typing import Any, Dict, Tuple, List
 
 from . import adapter_logger
 
 METHOD_METADATA: Dict[str, 'CommandLine'] = {}
+CHOICE_METADATA: Dict[str, 'ChoiceCommand'] = {}
 
 
 class CommandLine(object):
@@ -28,14 +31,38 @@ class CommandLine(object):
         return f"{self.client.__qualname__} required {self.required} default {self.default}"
 
 
+@dataclass
+class Choice:
+    name: str
+    is_position: bool
+    default: object = None
+    help: str = None
+
+
+class ChoiceCommand(object):
+    def __init__(self, choice: Choice):
+        self.choice = choice
+
+    def __call__(self, original_func):
+        @functools.wraps(original_func)
+        def wrappee(*args, **kwargs):
+            original_func(*args, **kwargs)
+
+        self.client = original_func
+        CHOICE_METADATA[original_func.__qualname__] = self
+        return wrappee
+
+    def __str__(self):
+        return f"{self.client.__qualname__} choice {self.choice}"
+
+
 class ArgparserAdapter:
     BOOL_YES = ('true', 'on', 'yes')
     BOOL_NO = ('false', 'off', 'no')
 
     _INSTANCE: 'ArgparserAdapter' = None
 
-    def __init__(self, client, *, prefix: str = 'do_', group: bool = True, required: bool = False,
-                 explicit: bool = False):
+    def __init__(self, client, *, group: bool = True, required: bool = False, explicit: bool = False):
         """client: object to analyze for methods
         prefix: name to start method withs for arguments
         group: put arguments in an arparse group
@@ -44,11 +71,11 @@ class ArgparserAdapter:
             raise ValueError(f"Only one {self.__class__.__name__} currently supported")
         ArgparserAdapter._INSTANCE = self
         self.client = client
-        self.argadapt_prefix = prefix
         self.argadapt_required = required
         self.argadapt_group = group
         self.explicit = explicit
         self._argadapt_dict = {}
+        self._choice_dict = collections.defaultdict(dict)
 
     def param_conversion_exception(self, e: Exception, method_name: str, parameter_name: str, parameter_type: type,
                                    value: str) -> Any:
@@ -64,7 +91,6 @@ class ArgparserAdapter:
 
     def register(self, argparser: argparse.ArgumentParser) -> None:
         """Add arguments to argparser based on self.argadapt_settings"""
-        use_decorator = len(METHOD_METADATA) > 0
         needarg = False
         if self.argadapt_group:
             ap = argparser.add_mutually_exclusive_group(required=self.argadapt_required)
@@ -73,7 +99,7 @@ class ArgparserAdapter:
         else:
             ap = argparser
             arequired = self.argadapt_required
-        plen = len(self.argadapt_prefix)
+        choice_args: List[Tuple[Choice, List]] = []
         for d in inspect.getmembers(self.client, self.__only_methods):
             name, mobj = d
             kwargs = {}
@@ -85,15 +111,21 @@ class ArgparserAdapter:
                 kwargs = {'required': meta.required}
                 if meta.default is not None:
                     kwargs['default'] = meta.default
+            if (choice_meta := CHOICE_METADATA.get(mobj.__func__.__qualname__, None)) is not None:
+                if meta is not None:
+                    raise ValueError(f"{name} can only be decorated once")
+                for choice, values in choice_args:
+                    if choice == choice_meta.choice:
+                        values.append(name)
+                        break
+                else:
+                    choice_args.append((choice_meta.choice, [name]))
+                self._choice_dict[choice_meta.choice.name][name] = getattr(self.client, name)
 
             doc = inspect.getdoc(mobj)
-            startswith = not use_decorator and name.startswith(self.argadapt_prefix)
-            if startswith or meta is not None:
+            if meta is not None:
                 needarg = False
-                if startswith:
-                    arg = name[plen:]
-                else:
-                    arg = name
+                arg = name
                 sig = inspect.signature(mobj, follow_wrapped=True)
                 ptypes = [p for _, p in sig.parameters.items()]
                 self._argadapt_dict[arg] = (getattr(self.client, name), ptypes)
@@ -109,9 +141,14 @@ class ArgparserAdapter:
                         ap.add_argument(f'--{arg}', action='store_true', help=doc, **kwargs)
                     else:
                         ap.add_argument(f'--{arg}', action='store_true', help=doc)
-            if needarg:
-                raise ValueError(
-                    f"No methods marked @CommandLine staring with {self.argadapt_prefix} found and group is required")
+        if needarg:
+            raise ValueError(
+                f"No methods marked @CommandLine found and group is required")
+        for choice, values in choice_args:
+            if choice.is_position:
+                ap.add_argument(choice.name,choices=values,default=choice.default,help=choice.help)
+            else:
+                ap.add_argument(f"--{choice.name}",choices=values,default=choice.default,help=choice.help)
 
     @staticmethod
     def _interpret(typ, value):
@@ -150,6 +187,12 @@ class ArgparserAdapter:
                             value = self.param_conversion_exception(e, name, ptype.name, ptype.annotation, value)
                     callparams.append(value)
                 method(*callparams)
+        for name, cdict in self._choice_dict.items():
+            value = getattr(args, name, None)
+            if value:
+                method = cdict[value]
+                method()
+
 
     @staticmethod
     def __only_methods(x):

@@ -2,9 +2,8 @@
 import argparse
 import logging
 from ipaddress import IPv4Address
+from argparser_adapter import CommandLine, ArgparserAdapter
 
-from argparser_adapter import ArgparserAdapter
-from argparser_adapter.argparser_adapter import CommandLine
 
 
 class Something:
@@ -35,6 +34,10 @@ class Something:
         """Print ip address"""
         print(type(x))
         print(x)
+
+    @CommandLine()
+    def hello(self):
+        print("Hi!")
 
     @CommandLine()
     def binary(self, value: bool):
