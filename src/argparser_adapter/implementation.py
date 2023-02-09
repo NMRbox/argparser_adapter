@@ -3,7 +3,6 @@ import argparse
 import collections
 import functools
 import inspect
-import io
 import itertools
 from dataclasses import dataclass
 from typing import Any, Dict, Tuple, List
@@ -34,6 +33,11 @@ class CommandLine(object):
 
 @dataclass
 class Choice:
+    """name: metavar or option name
+    is_position: Argument is positional if True, -- style option if not
+    default: Default value for choice, if any
+    help: Header for help. Choice values are added automatically
+    """
     name: str
     is_position: bool
     default: object = None
@@ -145,7 +149,9 @@ class ArgparserAdapter:
             raise ValueError(
                 f"No methods marked @CommandLine found and group is required")
         for choice, values in choice_args:
-            helpdocs = [choice.help]
+            helpdocs = []
+            if choice.help:
+                helpdocs.append(choice.help)
             for optioname, v in self._choice_dict[choice.name].items():
                 if v[1] != None:
                     helpdocs.append(f"{optioname} ({v[1]})")

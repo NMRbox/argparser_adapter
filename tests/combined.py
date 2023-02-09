@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
-import logging
 from ipaddress import IPv4Address
+
 from argparser_adapter import CommandLine, ArgparserAdapter, Choice, ChoiceCommand
 
 petchoice = Choice("pet",False,default='cat',help="Pick your pet")
@@ -48,6 +48,7 @@ class Something:
 
     @ChoiceCommand(funchoice)
     def morning(self,name:str='Truman'):
+        """The sun has risen"""
         print(f"morning {name}!")
 
     @ChoiceCommand(funchoice)
