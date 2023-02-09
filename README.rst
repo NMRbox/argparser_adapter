@@ -8,6 +8,7 @@ Basic Usage
 -----------
 
 Write your class with methods you wish called from a command line decorated with *@CommandLine()*
+or *ChoiceCommand(choice)*
 Create an **ArgparserAdapter**, passing your object as a constructor. Decorated methods
 will be added to an argparser via the *register* call as -- arguments. After parsing,
 *call_specified_methods* will call methods specified on command. ArgparseAdapter will
@@ -29,65 +30,81 @@ Example
 
 ::
 
-    import argparse
-    import logging
-    from ipaddress import IPv4Address
+	import argparse
+	import logging
+	from ipaddress import IPv4Address
+	from argparser_adapter import CommandLine, ArgparserAdapter, Choice, ChoiceCommand
 
-    from argparser_adapter import ArgparserAdapter
-    from argparser_adapter.argparser_adapter import CommandLine
-
-
-    class Something:
-
-        @CommandLine()
-        def seven(self) -> int:
-            # no help for this argument
-            print(7)
-            return 7
-
-        @CommandLine()
-        def double(self, x):
-            """double a number"""
-            print(2 * int(x))
-
-        @CommandLine()
-        def sum(self, x: int, y: int):
-            """sum arguments"""
-            print(x + y)
-
-        @CommandLine(default=10)
-        def triple(self, x: int):
-            """triple a value"""
-            print(3 * int(x))
-
-        @CommandLine()
-        def ipv4address(self, x: IPv4Address):
-            """Print ip address"""
-            print(type(x))
-            print(x)
-
-        @CommandLine()
-        def binary(self, value: bool):
-            """True or false"""
-            print(value)
-
-        @CommandLine(required=True)
-        def happy(self, v: str):
-            """Report how happy we are"""
-            print(f"Happy is {v}")
+	petchoice = Choice("pet",False,default='cat',help="Pick your pet")
+	funchoice = Choice("fun",True,help="Pick your fun time")
 
 
-    def main():
-        something = Something()
-        adapter = ArgparserAdapter(something, group=False, required=False)
-        parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-        adapter.register(parser)
-        args = parser.parse_args()
-        adapter.call_specified_methods(args)
+	class Something:
+
+		@CommandLine()
+		def seven(self) -> int:
+			# no help for this argument
+			print(7)
+			return 7
+
+		@CommandLine()
+		def double(self, x: int):
+			"""double a number"""
+			print(2 * x)
+
+		@CommandLine()
+		def sum(self, x: int, y: int):
+			"""sum arguments"""
+			print(x + y)
+
+		@CommandLine(default=10)
+		def triple(self, x: int):
+			"""triple a value"""
+			print(3 * int(x))
+
+		@CommandLine()
+		def ipv4address(self, x: IPv4Address):
+			"""Print ip address"""
+			print(type(x))
+			print(x)
+
+		@CommandLine()
+		def hello(self):
+			print("Hi!")
+
+		@CommandLine()
+		def binary(self, value: bool):
+			"""True or false"""
+			print(value)
+
+		@ChoiceCommand(funchoice)
+		def morning(self):
+			print("morning!")
+
+		@ChoiceCommand(funchoice)
+		def night(self):
+			print("it's dark")
+
+		@ChoiceCommand(petchoice)
+		def dog(self):
+			print("woof")
+
+		@ChoiceCommand(petchoice)
+		def cat(self):
+			print("meow")
 
 
-    if __name__ == "__main__":
-        main()
+	def main():
+		something = Something()
+		adapter = ArgparserAdapter(something)
+		parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+		adapter.register(parser)
+		args = parser.parse_args()
+		adapter.call_specified_methods(args)
+
+
+	if __name__ == "__main__":
+		main()
 
 Note the *double* will receive a string and must convert it to an integer. The
 type hint in *triple* ensures the argument will be an integer.
@@ -96,19 +113,21 @@ The resulting argument argparser help is:
 
 ::
 
-    usage: decoratortest.py [-h] [--binary value] [--double x] --happy v
-                            [--ipv4address x] [--seven] [--sum x y] [--triple x]
+	usage: combined.py [-h] [--binary value] [--double x] [--hello] [--ipv4address x] [--seven] [--sum x y] [--triple x] [--pet {cat,dog}] {morning,night}
 
-    optional arguments:
-      -h, --help       show this help message and exit
-      --binary value   True or false (default: None)
-      --double x       double a number (default: None)
-      --happy v        Report how happy we are (default: None)
-      --ipv4address x  Print ip address (default: None)
-      --seven
-      --sum x y        sum arguments (default: None)
-      --triple x       triple a value (default: 10)
+	positional arguments:
+	  {morning,night}  Pick your fun time
 
+	optional arguments:
+	  -h, --help       show this help message and exit
+	  --binary value   True or false (default: None)
+	  --double x       double a number (default: None)
+	  --hello
+	  --ipv4address x  Print ip address (default: None)
+	  --seven
+	  --sum x y        sum arguments (default: None)
+	  --triple x       triple a value (default: 10)
+	  --pet {cat,dog}  Pick your pet (default: cat)
 
 Docstrings, if present, become help arguments.
 

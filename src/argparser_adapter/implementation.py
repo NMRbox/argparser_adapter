@@ -3,6 +3,7 @@ import argparse
 import collections
 import functools
 import inspect
+import io
 import itertools
 from dataclasses import dataclass
 from typing import Any, Dict, Tuple, List
@@ -62,9 +63,8 @@ class ArgparserAdapter:
 
     _INSTANCE: 'ArgparserAdapter' = None
 
-    def __init__(self, client, *, group: bool = True, required: bool = False, explicit: bool = False):
+    def __init__(self, client, *, group: bool = False, required: bool = False):
         """client: object to analyze for methods
-        prefix: name to start method withs for arguments
         group: put arguments in an arparse group
         required: if using a group, make it required"""
         if not ArgparserAdapter._INSTANCE is None:
@@ -73,7 +73,6 @@ class ArgparserAdapter:
         self.client = client
         self.argadapt_required = required
         self.argadapt_group = group
-        self.explicit = explicit
         self._argadapt_dict = {}
         self._choice_dict = collections.defaultdict(dict)
 
@@ -120,7 +119,8 @@ class ArgparserAdapter:
                         break
                 else:
                     choice_args.append((choice_meta.choice, [name]))
-                self._choice_dict[choice_meta.choice.name][name] = getattr(self.client, name)
+                doc = inspect.getdoc(mobj)
+                self._choice_dict[choice_meta.choice.name][name] = (getattr(self.client, name),doc)
 
             doc = inspect.getdoc(mobj)
             if meta is not None:
@@ -145,10 +145,15 @@ class ArgparserAdapter:
             raise ValueError(
                 f"No methods marked @CommandLine found and group is required")
         for choice, values in choice_args:
+            helpdocs = [choice.help]
+            for optioname, v in self._choice_dict[choice.name].items():
+                if v[1] != None:
+                    helpdocs.append(f"{optioname} ({v[1]})")
+            help = '\n'.join(helpdocs)
             if choice.is_position:
-                ap.add_argument(choice.name,choices=values,default=choice.default,help=choice.help)
+                ap.add_argument(choice.name,choices=values,default=choice.default,help=help)
             else:
-                ap.add_argument(f"--{choice.name}",choices=values,default=choice.default,help=choice.help)
+                ap.add_argument(f"--{choice.name}",choices=values,default=choice.default,help=help)
 
     @staticmethod
     def _interpret(typ, value):
@@ -187,10 +192,10 @@ class ArgparserAdapter:
                             value = self.param_conversion_exception(e, name, ptype.name, ptype.annotation, value)
                     callparams.append(value)
                 method(*callparams)
-        for name, cdict in self._choice_dict.items():
+        for name, ctuple in self._choice_dict.items():
             value = getattr(args, name, None)
             if value:
-                method = cdict[value]
+                method = ctuple[value][0]
                 method()
 
 
